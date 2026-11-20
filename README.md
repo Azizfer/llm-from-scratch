@@ -1,111 +1,199 @@
-# GPT from Scratch — Decoder-Only Transformer
+# GPT from Scratch — Building a Transformer Language Model
 
-**A hands-on language-model engineering project built in PyTorch.** I implemented a GPT-style decoder-only Transformer, experimented with pre-training on OpenWebText and instruction fine-tuning with Databricks Dolly 15k, and studied the model's outputs and limitations.
+**An experimental GPT-style language model implemented from scratch in PyTorch.**
 
-This is an **experimental learning project**, not a production chatbot or a claim of general-purpose language understanding.
+This project explores the architecture, training, fine-tuning, and evaluation of a decoder-only Transformer. Starting with the fundamental building blocks of neural networks and self-attention, I developed a language model and experimented with training it on OpenWebText and instruction fine-tuning it on Databricks Dolly 15k.
+
+The goal was to develop a deeper practical understanding of **how large language models work**, from their mathematical foundations to their behavior during training and text generation.
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)
-![NLP](https://img.shields.io/badge/Focus-NLP%20%26%20Transformers-555555?style=flat-square)
-
-## What I built
-
-- A decoder-only Transformer with **causal multi-head self-attention**, token and position embeddings, residual connections, layer normalization, and feed-forward networks.
-- A next-token language-modeling objective using cross-entropy loss.
-- Training code with **AdamW**, gradient clipping, and a learning-rate schedule incorporating warmup and cosine decay.
-- Generation with **top-k** and **top-p (nucleus) sampling**.
-- An instruction fine-tuning experiment using prompt/response examples from Dolly 15k.
-
-I used the **GPT-2 BPE tokenizer** through `tiktoken`; I did not train a tokenizer from scratch.
-
-## Model architecture
-
-The table reflects the **model actually constructed in [`src/model.py`](src/model.py)**, rather than older experiment notes.
-
-| Component | Configuration |
-| --- | --- |
-| Architecture | Decoder-only Transformer |
-| Transformer blocks | 12 |
-| Attention heads per block | 4 |
-| Embedding dimension | 512 |
-| Context length | 128 tokens |
-| Vocabulary | 50,257 tokens (GPT-2 BPE) |
-| Feed-forward hidden dimension | 2,048 |
-| Activation | ReLU |
-| Dropout | 0.1 |
-| Output projection | Separate, untied language-model head |
-| Parameters | **~89.39 million, calculated from the published layer definitions** |
-
-> **Architecture note:** The file also declares `n_head = 8` at module scope, but the actual constructor uses `Block(n_embd, n_head=4)`. The table reports the constructed model. The parameter count has been calculated from the source; it has not been checked against a published model checkpoint.
-
-## Data and experiments
-
-1. **Pre-training:** The code loads [OpenWebText](https://huggingface.co/datasets/Skylion007/openwebtext) through Hugging Face Datasets and trains a next-token prediction model. The published loss log contains measurements through **step 12,900**.
-2. **Instruction fine-tuning:** The code formats examples from [Databricks Dolly 15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k) into question/context/answer sequences. Two fine-tuning loss logs are included; the fine-tuning script defines an additional 3,000-step loop. These artifacts do not, by themselves, establish one complete end-to-end run history.
-3. **Generation and evaluation:** The repository includes a text-generation script and recorded examples. An earlier experiment reported a WikiText-2 result, but no independently runnable WikiText-2 evaluation script is currently published.
-
-## Results and observations
-
-### Pre-training loss
-
-The last recorded entry in [`results/pretrain_losses.csv`](results/pretrain_losses.csv) is:
-
-| Logged step | Training loss | Validation loss |
-| ---: | ---: | ---: |
-| 12,900 | 4.2384 | 4.2395 |
-
-These are **logged loss values**, not independently reproduced benchmark results.
-
-![Recorded pre-training loss curve](results/loss_curve.png)
-
-### Fine-tuning loss
-
-Two experiment logs are available:
-
-- [Fine-tuning run 1](results/finetune_run1_losses.csv)
-- [Fine-tuning run 2](results/finetune_run2_losses.csv)
-
-The final recorded loss is **2.4878** at step 1,900 in run 1 and **1.9288** at step 1,900 in run 2. These are training measurements, not held-out evaluation scores.
-
-![Recorded fine-tuning loss curve](results/finetune_loss_curve.png)
-
-### Text generation
-
-In my experiments, generations progressed from largely incoherent text toward more structured responses on familiar prompts after fine-tuning. **This does not establish reliable generalization** to unseen questions. The model remained sensitive to training data, compute limits, and overfitting.
-
-## Repository structure
-
-```text
-.
-├── src/
-│   ├── model.py       # Transformer architecture and sampling
-│   ├── tokenizer.py   # GPT-2 tokenizer helper
-│   ├── dataset.py     # Dataset loading
-│   ├── train.py       # Checkpoint-resuming language-model training
-│   ├── pretrain.py    # Dolly instruction fine-tuning (historical filename)
-│   └── generate.py    # Checkpoint-based generation example
-├── results/
-│   ├── pretrain_losses.csv
-│   ├── finetune_run1_losses.csv
-│   ├── finetune_run2_losses.csv
-│   ├── loss_curve.png
-│   └── finetune_loss_curve.png
-└── README.md
-```
-
-## Reproducibility status
-
-**The published source is not yet a standalone, one-command training pipeline.** Some scripts expect variables initialized elsewhere (including the model, tokenizer, or dataset splits), and training/generation use Kaggle-specific checkpoint paths. Model weights, environment specifications, and an independently runnable evaluation script are not currently included.
-
-The source and CSV logs are provided for inspection and learning; they should not be interpreted as a fully reproducible training release.
-
-## What I learned
-
-- How attention, masking, residual connections, normalization, and token embeddings fit together in an autoregressive Transformer.
-- The practical difference between decreasing training loss and generating reliable answers.
-- How training dynamics, checkpointing, resource constraints, and fine-tuning affect model behavior.
-- Why reproducible evaluations and clearly documented limitations matter as much as model architecture.
+![NLP](https://img.shields.io/badge/NLP-Transformers-555555?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Experimental-orange?style=flat-square)
 
 ---
 
-**Author:** [Aziz Ferchichi](https://github.com/Azizfer) · [LinkedIn](https://www.linkedin.com/in/aziz-ferchichi-499742218)
+## Project Overview
+
+Rather than using a pretrained language model, I implemented the main components of a GPT-style Transformer to understand how they interact throughout the training and generation process.
+
+**Key components implemented:**
+
+- **Decoder-only Transformer:** Causal self-attention, multi-head attention, positional embeddings, residual connections, and layer normalization.
+- **Language modeling:** Autoregressive next-token prediction using cross-entropy loss.
+- **Training pipeline:** AdamW optimization, gradient clipping, checkpointing, and learning-rate scheduling.
+- **Text generation:** Token sampling with top-k and top-p (nucleus) filtering.
+- **Instruction fine-tuning:** Experiments with question-answer data to encourage more structured responses.
+
+The model uses the GPT-2 BPE tokenizer provided by `tiktoken`. The Transformer architecture was implemented manually in PyTorch; the tokenizer itself was not trained from scratch.
+
+## Model Architecture
+
+The following configuration reflects the model instantiated in [`src/model.py`](src/model.py).
+
+| Component | Configuration |
+|---|---|
+| Model type | Decoder-only Transformer |
+| Parameters | Approximately 89.39 million |
+| Transformer blocks | 12 |
+| Attention heads per block | 4 |
+| Embedding dimension | 512 |
+| Context window | 128 tokens |
+| Vocabulary size | 50,257 tokens |
+| Tokenizer | GPT-2 BPE |
+| Feed-forward dimension | 2,048 |
+| Activation function | ReLU |
+| Dropout | 0.1 |
+| Output layer | Untied language-model head |
+
+**Implementation note:** Although `n_head = 8` is declared in the source, the model constructor explicitly instantiates four attention heads per block. The parameter count is calculated from the published architecture.
+
+## Training and Fine-Tuning
+
+### 1. Pre-training
+
+The model was trained using the [OpenWebText dataset](https://huggingface.co/datasets/Skylion007/openwebtext).
+
+The objective was to predict the next token in a sequence, allowing the model to learn statistical relationships between tokens.
+
+The training implementation includes:
+
+- Mini-batch optimization with AdamW.
+- A learning-rate scheduler with warmup and cosine-decay logic.
+- Gradient clipping to stabilize training.
+- Periodic loss monitoring and checkpoint saving.
+
+The published training logs include measurements through **12,900 steps**.
+
+### 2. Instruction Fine-Tuning
+
+After pre-training, I experimented with instruction fine-tuning using [Databricks Dolly 15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k).
+
+The dataset contains instruction-response examples, sometimes accompanied by additional context.
+
+The objective was to encourage the model to generate responses in a more structured question-answer format.
+
+These experiments helped me explore the difference between learning general text patterns and adapting a model to follow specific response formats.
+
+### 3. Text Generation
+
+The model generates text autoregressively, predicting one token at a time.
+
+To control the sampling process, I implemented:
+
+- **Top-k sampling:** Restricts sampling to the highest-probability tokens.
+- **Top-p sampling:** Selects tokens from a probability distribution up to a cumulative probability threshold.
+- **Temperature-independent probability sampling:** Samples from the filtered model logits.
+
+Generation experiments highlighted the influence of training quality, context length, and fine-tuning on the model's responses.
+
+---
+
+## Experimental Results
+
+### Pre-training Loss
+
+The final recorded entry in the published pre-training log is:
+
+| Step | Training Loss | Validation Loss |
+|---:|---:|---:|
+| 12,900 | 4.2384 | 4.2395 |
+
+The training history shows a substantial reduction in loss compared with the beginning of training.
+
+![Pre-training loss curve](results/loss_curve.png)
+
+**Observation:** Training and validation losses remained relatively close in the published measurements, although these results alone are not sufficient to establish generalization performance.
+
+### Fine-Tuning Loss
+
+Two fine-tuning experiment logs are available in the repository.
+
+| Experiment | Last Logged Step | Recorded Loss |
+|---|---:|---:|
+| Run 1 | 1,900 | 2.4878 |
+| Run 2 | 1,900 | 1.9288 |
+
+![Fine-tuning loss curve](results/finetune_loss_curve.png)
+
+These values represent recorded training losses rather than independent benchmark scores.
+
+The original experiments also included a reported WikiText-2 evaluation, but the repository does not currently contain a standalone script to reproduce that benchmark.
+
+### Text Generation Observations
+
+The model initially produced largely incoherent text.
+
+After training and instruction fine-tuning, its outputs became more structured, especially when responding to prompts resembling examples encountered during training.
+
+This progression demonstrated the role of fine-tuning in shaping language-model behavior.
+
+However, the model continued to exhibit important limitations, including:
+
+- Difficulty generalizing to unfamiliar questions.
+- Sensitivity to prompt wording and context.
+- Computational limitations during training.
+- Challenges involving overfitting and response reliability.
+
+**The project is an experimental language model, not a production-ready conversational assistant.**
+
+---
+
+## Repository Structure
+
+**Source code**
+
+- [`src/model.py`](src/model.py) — Transformer architecture, forward propagation, and text sampling.
+- [`src/tokenizer.py`](src/tokenizer.py) — GPT-2 tokenizer helper functions.
+- [`src/dataset.py`](src/dataset.py) — Dataset loading.
+- [`src/train.py`](src/train.py) — Language-model training and checkpoint handling.
+- [`src/pretrain.py`](src/pretrain.py) — Instruction fine-tuning experiments (historical filename).
+- [`src/generate.py`](src/generate.py) — Text-generation example.
+
+**Experimental results**
+
+- [`results/pretrain_losses.csv`](results/pretrain_losses.csv) — Pre-training loss measurements.
+- [`results/finetune_run1_losses.csv`](results/finetune_run1_losses.csv) — First fine-tuning experiment.
+- [`results/finetune_run2_losses.csv`](results/finetune_run2_losses.csv) — Second fine-tuning experiment.
+- [`results/loss_curve.png`](results/loss_curve.png) — Pre-training visualization.
+- [`results/finetune_loss_curve.png`](results/finetune_loss_curve.png) — Fine-tuning visualization.
+
+## Reproducibility
+
+This repository contains the source code and recorded results from my experiments.
+
+The scripts were originally developed in an interactive Kaggle environment and currently depend on some externally initialized variables and environment-specific checkpoint paths.
+
+Consequently, the published files are intended primarily for exploring the implementation and experiments rather than providing a fully automated training pipeline.
+
+A standalone training workflow and independently reproducible benchmark evaluation are potential future improvements.
+
+---
+
+## Key Takeaways
+
+This project allowed me to move beyond using existing language models and explore the engineering challenges involved in building one.
+
+Some of the most valuable lessons included:
+
+- Understanding how causal attention, token embeddings, residual connections, and normalization work together.
+- Implementing an autoregressive training objective and learning-rate scheduling.
+- Exploring the effects of pre-training and instruction fine-tuning.
+- Managing computational constraints and training instability.
+- Recognizing the difference between decreasing training loss and achieving reliable text generation.
+- Understanding the importance of experimental evaluation, reproducibility, and model limitations.
+
+More importantly, the project reinforced my interest in **deep learning, natural language processing, and scientific research**.
+
+---
+
+## Connect
+
+**Mohamed Aziz Ferchichi**
+
+Computer Science Graduate | Data Analytics & Science Engineering Student
+
+- [GitHub](https://github.com/Azizfer)
+- [LinkedIn](https://www.linkedin.com/in/aziz-ferchichi-499742218)
+
+*Always learning, experimenting, and building.*
